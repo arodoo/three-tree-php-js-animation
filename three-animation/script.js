@@ -12,8 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
     
-    // Position camera directly in front of the model
-    camera.position.set(0, 0, 10);
+    // Position camera further back to see larger model
+    camera.position.set(0, 0, 25);
     camera.lookAt(0, 0, 0);
 
     // Set up high-quality renderer with explicit texture support
@@ -109,15 +109,19 @@ document.addEventListener("DOMContentLoaded", () => {
                         const materials = Array.isArray(node.material) ? node.material : [node.material];
                         
                         materials.forEach(material => {
-                            // Log all material properties to debug
-                            console.log("Material properties:", Object.keys(material));
+                            // Force a basic material with color if textures aren't working
+                            // Try to extract color from existing material
+                            let baseColor = new THREE.Color(0xffffff);
+                            if (material.color) {
+                                baseColor = material.color;
+                            }
                             
                             // Check for and enhance specific texture types
                             const textureTypes = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'];
                             
                             textureTypes.forEach(texType => {
                                 if (material[texType]) {
-                                    console.log(`Found ${texType}:`, material[texType].source);
+                                    console.log(`Found ${texType}:`, material[texType]);
                                     texturesFound.push(texType);
                                     
                                     // Enhance texture quality
@@ -127,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 }
                             });
                             
-                            // Ensure material is properly updated
+                            // Ensure material catches light properly
                             material.needsUpdate = true;
                         });
                     }
@@ -157,12 +161,12 @@ document.addEventListener("DOMContentLoaded", () => {
             // Set model rotation
             gltf.scene.rotation.y = Math.PI;
             
-            // Scale the model if needed to make it more visible
+            // Make the model significantly larger
             const size = box.getSize(new THREE.Vector3()).length();
-            const scale = 5 / size; // Scale to a standard size
+            const scale = 20 / size; // Scale to a much larger size (20 units instead of 5)
             gltf.scene.scale.set(scale, scale, scale);
             
-            console.log("Model loaded and processed with size:", size);
+            console.log("Model loaded and processed with size:", size, "and scaled by:", scale);
         },
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% loaded');
