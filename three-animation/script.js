@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-// Import additional needed modules
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 
@@ -13,137 +12,127 @@ document.addEventListener("DOMContentLoaded", () => {
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
     
     // Position camera further back to see larger model
-    camera.position.set(0, 0, 25);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0, 0, 9);
+    camera.lookAt(3, -1, 2);
 
-    // Set up high-quality renderer with explicit texture support
+    // Set up renderer with simplified settings for compatibility
     const renderer = new THREE.WebGLRenderer({ 
         antialias: true,
-        alpha: true,
-        preserveDrawingBuffer: true,
-        precision: "highp" // Use high precision for better quality
+        alpha: true
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setClearColor(0xf6b31b);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit to 2x for performance
+    renderer.setPixelRatio(window.devicePixelRatio);
     
-    // Fix for Three.js version compatibility with texture encoding
-    renderer.outputEncoding = THREE.sRGBEncoding; // Better color encoding
-    renderer.gammaOutput = true;
-    renderer.gammaFactor = 2.2;
-    renderer.physicallyCorrectLights = true; // More accurate lighting
-    renderer.toneMapping = THREE.ACESFilmicToneMapping; // Improved tone mapping
-    renderer.toneMappingExposure = 1.0;
-    
-    // Enable shadows
-    renderer.shadowMap.enabled = true; // Enable shadow mapping
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadows
+    // Simple renderer settings that work in most browsers
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // Create strong lighting to make textures visible
-    // Ambient light (overall illumination)
+    // Simple but effective lighting setup
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
     
-    // Main directional light (like sun)
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    directionalLight.position.set(5, 10, 7.5);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 1024;
-    directionalLight.shadow.mapSize.height = 1024;
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(5, 5, 5);
     scene.add(directionalLight);
-
-    // Front light to illuminate model from camera view
+    
     const frontLight = new THREE.DirectionalLight(0xffffff, 1.0);
     frontLight.position.set(0, 0, 10);
     scene.add(frontLight);
-    
-    // Add hemisphere light for more natural lighting
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
-    hemiLight.color.setHSL(0.6, 1, 0.6);
-    hemiLight.groundColor.setHSL(0.095, 1, 0.75);
-    hemiLight.position.set(0, 50, 0);
-    scene.add(hemiLight);
 
-    // Enhanced model loading with DRACO compression support
+    // Use a simple GLTFLoader setup
+    const loader = new GLTFLoader();
+    
+    // Set up a DRACO loader for compressed models
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-    
-    // Optional: Add KTX2 texture support if needed
-    const ktx2Loader = new KTX2Loader();
-    ktx2Loader.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/libs/basis/');
-    
-    const loader = new GLTFLoader();
     loader.setDRACOLoader(dracoLoader);
-    loader.setKTX2Loader(ktx2Loader);
-    
-    // Create texture loader for manual texture loading if needed
-    const textureLoader = new THREE.TextureLoader();
-    // Set cross-origin policy to allow texture loading from different sources
-    textureLoader.crossOrigin = 'anonymous';
     
     let mixer;
     
-    // Debug information for texture loading
-    console.log("Loading model with textures...");
+    // Try loading the model with debugging information
+    console.log("Loading model...");
     
     loader.load(
         "/animation/three-animation/stop_motion_pixel_art_pine.glb",
         (gltf) => {
-            console.log("GLTF loaded:", gltf);
+            console.log("Model loaded successfully:", gltf);
             
-            // Debug info for texture detection
-            const texturesFound = [];
+            // Define colors for meshes that might need replacement materials
+            const colors = [
+                0x8844aa, 0x5588ee, 0x44bbdd, 0x66cc77,
+                0xaadd66, 0xffee58, 0xffbb33, 0xff8844
+            ];
+            let colorIndex = 0;
             
-            // Process all materials and textures for quality
+            // Keep track of which meshes have working textures
+            const workingTextureMeshes = [];
+            const problematicMeshes = [];
+            
+            // Apply materials to each mesh - preserve originals where possible
             gltf.scene.traverse((node) => {
                 if (node.isMesh) {
-                    console.log("Found mesh:", node.name);
+                    console.log("Processing mesh:", node.name);
+                    
+                    // Store original material for reference
+                    const originalMaterial = node.material;
+                    console.log("Original material:", originalMaterial);
+                    
+                    // Check if original material has working textures
+                    let hasWorkingTexture = false;
+                    
+                    if (originalMaterial.map) {
+                        console.log(`Mesh ${node.name} has a texture map`);
+                        hasWorkingTexture = true;
+                        
+                        // Enhance the texture quality
+                        originalMaterial.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                        originalMaterial.map.minFilter = THREE.LinearMipmapLinearFilter;
+                        originalMaterial.map.magFilter = THREE.LinearFilter;
+                        originalMaterial.needsUpdate = true;
+                    }
+                    
+                    // For transparent materials, ensure they render properly
+                    if (originalMaterial.transparent) {
+                        originalMaterial.side = THREE.DoubleSide;
+                        originalMaterial.alphaTest = 0.1;
+                    }
+                    
+                    // Only replace materials that have no texture
+                    if (!hasWorkingTexture) {
+                        problematicMeshes.push(node.name);
+                        
+                        // Create a colorful material for this mesh
+                        const material = new THREE.MeshStandardMaterial({
+                            color: colors[colorIndex % colors.length],
+                            roughness: 0.7,
+                            metalness: 0.3,
+                            transparent: originalMaterial.transparent,
+                            opacity: originalMaterial.opacity,
+                            side: THREE.DoubleSide
+                        });
+                        
+                        // Apply the new material
+                        node.material = material;
+                        colorIndex++;
+                    } else {
+                        workingTextureMeshes.push(node.name);
+                    }
+                    
+                    // Enable shadows
                     node.castShadow = true;
                     node.receiveShadow = true;
-                    
-                    if (node.material) {
-                        console.log("Material found:", node.material);
-                        
-                        // Apply to single material or array of materials
-                        const materials = Array.isArray(node.material) ? node.material : [node.material];
-                        
-                        materials.forEach(material => {
-                            // Force a basic material with color if textures aren't working
-                            // Try to extract color from existing material
-                            let baseColor = new THREE.Color(0xffffff);
-                            if (material.color) {
-                                baseColor = material.color;
-                            }
-                            
-                            // Check for and enhance specific texture types
-                            const textureTypes = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'];
-                            
-                            textureTypes.forEach(texType => {
-                                if (material[texType]) {
-                                    console.log(`Found ${texType}:`, material[texType]);
-                                    texturesFound.push(texType);
-                                    
-                                    // Enhance texture quality
-                                    material[texType].anisotropy = renderer.capabilities.getMaxAnisotropy();
-                                    material[texType].encoding = texType === 'map' ? THREE.sRGBEncoding : THREE.LinearEncoding;
-                                    material[texType].needsUpdate = true;
-                                }
-                            });
-                            
-                            // Ensure material catches light properly
-                            material.needsUpdate = true;
-                        });
-                    }
                 }
             });
             
-            console.log("Textures found in model:", texturesFound);
+            console.log("Meshes with working textures:", workingTextureMeshes);
+            console.log("Meshes with replacement materials:", problematicMeshes);
             
-            // Add model to scene
+            // Add the entire model to the scene
             scene.add(gltf.scene);
             
-            // Setup animation if available
+            // Set up animations if available
             if (gltf.animations && gltf.animations.length) {
                 console.log(`Found ${gltf.animations.length} animations`);
                 mixer = new THREE.AnimationMixer(gltf.scene);
@@ -151,22 +140,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 action.play();
             }
             
-            // Center model
+            // Center the model
             const box = new THREE.Box3().setFromObject(gltf.scene);
             const center = box.getCenter(new THREE.Vector3());
             gltf.scene.position.x -= center.x;
             gltf.scene.position.y -= center.y;
             gltf.scene.position.z -= center.z;
             
-            // Set model rotation
+            // Set model rotation (adjust as needed)
             gltf.scene.rotation.y = Math.PI;
             
-            // Make the model significantly larger
+            // Make the model larger
             const size = box.getSize(new THREE.Vector3()).length();
-            const scale = 20 / size; // Scale to a much larger size (20 units instead of 5)
+            const scale = 20 / size; // Scale to a larger size
             gltf.scene.scale.set(scale, scale, scale);
             
-            console.log("Model loaded and processed with size:", size, "and scaled by:", scale);
+            console.log("Model processed with size:", size, "and scale:", scale);
         },
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% loaded');
