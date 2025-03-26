@@ -5,7 +5,7 @@
  * @return string HTML for the animation
  */
 function generateThreeAnimation() {
-    $html = '<div id="three-animation-container" class="three-animation-container"></div>';
+    $html = '<div class="three-animation-wrapper"><div id="three-animation-container" class="three-animation-container"></div></div>';
     
     // Add import map to resolve bare module specifiers
     $html .= '
@@ -19,10 +19,10 @@ function generateThreeAnimation() {
     </script>';
     
     // Include external script as a module
-    $html .= '<script type="module" src="/animation/three-animation/script.js"></script>';
+    $html .= '<script type="module" src="/utils/tree-animation/script.js"></script>';
     
     // Include CSS
-    $html .= '<link rel="stylesheet" href="/animation/three-animation/styles.css">';
+    $html .= '<link rel="stylesheet" href="/utils/tree-animation/styles.css">';
     
     return $html;
 }

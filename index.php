@@ -1,6 +1,6 @@
 <?php
 //3D Animation
-require_once 'three-animation/index.php';
+require_once 'tree-animation/index.php';
 ?>
 
 <?php echo generateThreeAnimation(); ?>
